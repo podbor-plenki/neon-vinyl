@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Neon Vinyl PRO — Range Rover Sport · подбор-цветной-пленки.рф</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#060606; color:#fff; font-family:system-ui,-apple-system,sans-serif;
+    min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:18px; overflow-x:hidden; }
+  .label { font-size:11px; letter-spacing:4px; text-transform:uppercase; color:rgba(255,255,255,0.4); margin-bottom:12px; text-align:center; }
+  #wrap { width:min(1040px,96vw); height:62vh; min-height:440px; position:relative;
+    border:1px solid rgba(255,255,255,0.08); border-radius:18px; overflow:hidden; background:#040404; }
+  #c { width:100%; height:100%; display:block; }
+  .brand { position:absolute; top:18px; left:20px; z-index:12; display:flex; align-items:center; gap:8px; pointer-events:none; }
+  .brand-dot { width:9px; height:9px; border-radius:50%; background:#00ff78; box-shadow:0 0 10px #00ff78; }
+  .brand-text { font-size:14px; letter-spacing:1px; font-weight:500; text-shadow:0 1px 5px rgba(0,0,0,0.9); }
+  .badge { position:absolute; top:18px; right:18px; font-size:11px; letter-spacing:3px; color:#00ff78;
+    border:1px solid rgba(0,255,120,0.3); padding:4px 10px; border-radius:4px; background:rgba(0,0,0,0.5); z-index:12; pointer-events:none; }
+  .hint { position:absolute; bottom:14px; left:50%; transform:translateX(-50%); font-size:10px; letter-spacing:2px;
+    color:rgba(255,255,255,0.25); text-transform:uppercase; z-index:12; pointer-events:none; }
+  #load { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; z-index:20;
+    font-size:12px; letter-spacing:2px; color:rgba(255,255,255,0.5); background:#060606; }
+  .films { margin-top:22px; display:flex; gap:14px; flex-wrap:wrap; justify-content:center; max-width:720px; }
+  .film { width:54px; height:54px; border-radius:10px; cursor:pointer; border:2px solid rgba(255,255,255,0.12);
+    transition:transform .15s, border-color .15s; position:relative; overflow:hidden; }
+  .film:hover { transform:scale(1.1); }
+  .film.active { border-color:#fff; transform:scale(1.1); }
+  .film-name { margin-top:16px; font-size:13px; letter-spacing:1px; color:#fff; text-align:center; }
+  .film-art { font-size:10px; letter-spacing:2px; color:rgba(255,255,255,0.4); text-align:center; margin-top:3px; }
+</style>
+</head>
+<body>
+<div class="label">Neon Vinyl PRO · Range Rover Sport · DYNASHIELD</div>
+<div id="wrap">
+  <div class="brand"><span class="brand-dot"></span><span class="brand-text">подбор-цветной-пленки.рф</span></div>
+  <div class="badge">360°</div>
+  <canvas id="c"></canvas>
+  <div class="hint">← перетащите для вращения · колесо — зум →</div>
+  <div id="load">Загрузка 3D-сцены…</div>
+</div>
+<div class="film-name" id="fname">Piement Red</div>
+<div class="film-art" id="fart">DYNASHIELD · D008 · Глянец-металлик</div>
+<div class="films" id="films"></div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
+
+const wrap = document.getElementById('wrap');
+const canvas = document.getElementById('c');
+const loadEl = document.getElementById('load');
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 1000);
+camera.position.set(4.2, 1.6, 5.2);
+
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 1.1;
+controls.minDistance = 3;
+controls.maxDistance = 9;
+controls.maxPolarAngle = Math.PI/1.95;
+controls.target.set(0, 0.6, 0);
+
+// окружение для отражений — настоящий студийный HDR с софтбоксами
+const pmrem = new THREE.PMREMGenerator(renderer);
+pmrem.compileEquirectangularShader();
+scene.background = new THREE.Color(0x070707);
+new RGBELoader().load(
+  'https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/studio_kontrast_04_2k.hdr',
+  (hdr)=>{
+    const envMap = pmrem.fromEquirectangular(hdr).texture;
+    scene.environment = envMap;
+    hdr.dispose();
+    bodyMeshes.forEach(m=>{ m.material.envMap = envMap; m.material.needsUpdate = true; });
+  },
+  undefined,
+  ()=>{ // фолбэк если HDR не загрузился
+    import('three/addons/environments/RoomEnvironment.js').then(({RoomEnvironment})=>{
+      scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    });
+  }
+);
+
+// свет — студийный: ключевой + контровой + заполняющий
+const key = new THREE.SpotLight(0xffffff, 60, 30, Math.PI/5, 0.4, 1.5);
+key.position.set(5, 8, 5); scene.add(key);
+const rim = new THREE.SpotLight(0xcfe0ff, 40, 30, Math.PI/5, 0.5, 1.5);
+rim.position.set(-6, 5, -4); scene.add(rim);
+const fill = new THREE.DirectionalLight(0xffffff, 1.2);
+fill.position.set(0, 4, 8); scene.add(fill);
+scene.add(new THREE.AmbientLight(0xffffff, 0.25));
+
+// пол с лёгким отражением
+const floorGeo = new THREE.PlaneGeometry(60, 60);
+const floorMat = new THREE.MeshStandardMaterial({ color:0x0a0a0a, roughness:0.35, metalness:0.0 });
+const floor = new THREE.Mesh(floorGeo, floorMat);
+floor.rotation.x = -Math.PI/2; floor.position.y = 0; scene.add(floor);
+
+// ПРЕСЕТЫ ПЛЁНОК (по реальным образцам DYNASHIELD)
+const films = [
+  { name:'Piement Red', art:'D008 · Глянец-металлик', color:0x6e0a1c, tex:'flake',
+    props:{ metalness:0.9, roughness:0.28, clearcoat:1.0, clearcoatRoughness:0.04, iridescence:0, sheen:0 } },
+  { name:'Magic Greenstone', art:'D053 · Хамелеон', color:0x06352e, tex:'flake',
+    props:{ metalness:0.95, roughness:0.32, clearcoat:1.0, clearcoatRoughness:0.06, iridescence:1.0, iridescenceIOR:1.6, sheen:0 } },
+  { name:'Matte Charm Red', art:'D013 · Матовый', color:0x1a0d0f, tex:'matte',
+    props:{ metalness:0.2, roughness:0.92, clearcoat:0.1, clearcoatRoughness:0.6, iridescence:0, sheen:0.3, sheenColor:0x3a1418 } },
+  { name:'Gloss Black', art:'Глянец', color:0x0a0a0a, tex:'gloss',
+    props:{ metalness:0.7, roughness:0.12, clearcoat:1.0, clearcoatRoughness:0.03, iridescence:0, sheen:0 } },
+  { name:'Gloss White', art:'Глянец', color:0xe8e8e6, tex:'gloss',
+    props:{ metalness:0.1, roughness:0.15, clearcoat:1.0, clearcoatRoughness:0.04, iridescence:0, sheen:0 } },
+  { name:'Electric Blue', art:'Глянец-металлик', color:0x123a8c, tex:'flake',
+    props:{ metalness:0.85, roughness:0.25, clearcoat:1.0, clearcoatRoughness:0.05, iridescence:0, sheen:0 } },
+  { name:'Signal Yellow', art:'Глянец', color:0xe0b400, tex:'gloss',
+    props:{ metalness:0.3, roughness:0.18, clearcoat:1.0, clearcoatRoughness:0.04, iridescence:0, sheen:0 } },
+  { name:'Forest Green', art:'Глянец-металлик', color:0x0e5a2e, tex:'flake',
+    props:{ metalness:0.8, roughness:0.26, clearcoat:1.0, clearcoatRoughness:0.05, iridescence:0, sheen:0 } },
+  { name:'Satin Silver', art:'Сатин-металлик', color:0x9a9da0, tex:'flake',
+    props:{ metalness:0.95, roughness:0.45, clearcoat:0.4, clearcoatRoughness:0.4, iridescence:0, sheen:0 } },
+  { name:'Purple Chameleon', art:'Хамелеон', color:0x2a1340, tex:'flake',
+    props:{ metalness:0.9, roughness:0.3, clearcoat:1.0, clearcoatRoughness:0.06, iridescence:1.0, iridescenceIOR:1.8, sheen:0 } },
+];
+
+const BODY = ['2023_Land_Rover_Range_Rover_Sport_Firenze_Red','2023_Land_Rover_Range_Rover_Sport_RedMain','2023_Land_Rover_Range_Rover_Sport_DarkRed'];
+let bodyMeshes = [];
+
+function applyFilm(f){
+  bodyMeshes.forEach(mesh=>{
+    const m = mesh.material;
+    m.color.setHex(f.color);
+    m.metalness = f.props.metalness;
+    m.roughness = f.props.roughness;
+    m.clearcoat = f.props.clearcoat;
+    m.clearcoatRoughness = f.props.clearcoatRoughness;
+    m.iridescence = f.props.iridescence || 0;
+    if(f.props.iridescenceIOR) m.iridescenceIOR = f.props.iridescenceIOR;
+    m.sheen = f.props.sheen || 0;
+    if(f.props.sheenColor) m.sheenColor.setHex(f.props.sheenColor);
+
+    // ТЕКСТУРЫ ПО ТИПУ ПЛЁНКИ
+    const type = f.tex || 'gloss';
+    if(type === 'flake'){
+      // металлик/хамелеон — искра
+      m.normalMap = flakeNormal;
+      m.normalScale = new THREE.Vector2(0.35, 0.35);
+      m.roughnessMap = flakeRough;
+      m.clearcoatNormalMap = flakeNormal;
+      m.clearcoatNormalScale = new THREE.Vector2(0.15, 0.15);
+    } else if(type === 'matte'){
+      // матовый — лёгкое зерно
+      m.normalMap = peelNormal;
+      m.normalScale = new THREE.Vector2(0.5, 0.5);
+      m.roughnessMap = null;
+    } else {
+      // глянец — апельсиновая корка на лаке
+      m.normalMap = null;
+      m.clearcoatNormalMap = peelNormal;
+      m.clearcoatNormalScale = new THREE.Vector2(0.08, 0.08);
+      m.roughnessMap = null;
+    }
+    m.needsUpdate = true;
+  });
+}
+
+// текстуры микрорельефа (искра, корка)
+const texLoader = new THREE.TextureLoader();
+const BASE = 'https://cdn.jsdelivr.net/gh/podbor-plenki/neon-vinyl@main/';
+function loadTex(name, repeat){
+  const t = texLoader.load(BASE+name);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(repeat, repeat);
+  return t;
+}
+const flakeNormal = loadTex('flake_normal.png', 80);
+const flakeRough  = loadTex('flake_rough.png', 80);
+const peelNormal  = loadTex('peel_normal.png', 30);
+
+const draco = new DRACOLoader();
+draco.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco/');
+const loader = new GLTFLoader();
+loader.setDRACOLoader(draco);
+
+loader.load('https://cdn.jsdelivr.net/gh/podbor-plenki/neon-vinyl@main/rr_sport_web_1.glb',
+  (gltf)=>{
+    const model = gltf.scene;
+    // центрируем и ставим на пол
+    const box = new THREE.Box3().setFromObject(model);
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+    model.position.sub(center);
+    model.position.y += size.y/2;
+    const scale = 3.2 / size.x;
+    model.scale.setScalar(scale);
+
+    model.traverse(o=>{
+      if(o.isMesh && BODY.includes(o.material.name)){
+        // конвертируем материал кузова в physical (лак, металлик, перелив)
+        const phys = new THREE.MeshPhysicalMaterial({
+          color: 0x6e0a1c, metalness:0.9, roughness:0.28,
+          clearcoat:1.0, clearcoatRoughness:0.04,
+          envMapIntensity:1.6
+        });
+        phys.name = o.material.name;
+        o.material = phys;
+        bodyMeshes.push(o);
+      }
+    });
+    scene.add(model);
+    applyFilm(films[0]);
+    loadEl.style.display = 'none';
+  },
+  (xhr)=>{ if(xhr.total) loadEl.textContent = 'Загрузка модели… '+Math.round(xhr.loaded/xhr.total*100)+'%'; },
+  (err)=>{ loadEl.textContent = 'Ошибка загрузки модели'; console.error(err); }
+);
+
+function resize(){
+  const w = wrap.clientWidth, h = wrap.clientHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w/h; camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize); resize();
+
+function animate(){
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+// UI плёнок
+const filmsEl = document.getElementById('films');
+const fname = document.getElementById('fname');
+const fart = document.getElementById('fart');
+films.forEach((f,i)=>{
+  const el = document.createElement('div');
+  el.className = 'film'+(i===0?' active':'');
+  const hex = '#'+f.color.toString(16).padStart(6,'0');
+  if(f.art.includes('Хамелеон')) el.style.background = `linear-gradient(135deg, ${hex}, #2a8f7a, #6a3a9a)`;
+  else el.style.background = hex;
+  el.title = f.name;
+  el.onclick = ()=>{
+    document.querySelectorAll('.film').forEach(x=>x.classList.remove('active'));
+    el.classList.add('active');
+    fname.textContent = f.name; fart.textContent = 'DYNASHIELD · '+f.art;
+    applyFilm(f);
+  };
+  filmsEl.appendChild(el);
+});
+</script>
+<p style="margin-top:18px; font-size:10px; color:rgba(255,255,255,0.2);">3D: Range Rover Sport 2023 by Unn Tech (CC-BY) · Плёнки: DYNASHIELD</p>
+</body>
+</html>
